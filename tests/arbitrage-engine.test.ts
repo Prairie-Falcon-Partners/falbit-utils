@@ -70,7 +70,7 @@ describe("ArbitrageEngine", () => {
         pair: "BTC_USD",
         amountIn: 5,
       });
-      expect(result).toBeCloseTo(4500);
+      expect(result.amountOut).toBeCloseTo(4500);
     });
 
     it("should calculate the amount out when buying", () => {
@@ -80,7 +80,7 @@ describe("ArbitrageEngine", () => {
         pair: "USD_BTC",
         amountIn: 500,
       });
-      expect(result).toBeCloseTo(0.4545454545);
+      expect(result.amountOut).toBeCloseTo(0.4545454545);
     });
 
     it("should throw an error when no orderbooks or reserves found", () => {
@@ -107,7 +107,9 @@ describe("ArbitrageEngine", () => {
         amountIn: 5,
         fee: fee,
       });
-      expect(resultWithFee).toBeCloseTo(resultWithoutFee * (1 - fee));
+      expect(resultWithFee.amountOut).toBeCloseTo(
+        resultWithoutFee.amountOut * (1 - fee)
+      );
     });
 
     // Test Multiple Level Order Books
@@ -130,7 +132,8 @@ describe("ArbitrageEngine", () => {
         amountIn: 25,
       });
       // Expected result based on your order book calculation logic
-      expect(result).toBeCloseTo(20500); // Replace 'expectedValue' with your calculation
+      expect(result.amountIn).toBeCloseTo(25);
+      expect(result.amountOut).toBeCloseTo(20500);
     });
 
     // Test Exceed Volume Input Amount
@@ -142,8 +145,8 @@ describe("ArbitrageEngine", () => {
         pair: "BTC_USD",
         amountIn: largeAmount,
       });
-      // Expected behavior when exceeding the volume (e.g., return the maximum possible value, throw an error, etc.)
-      expect(result).toBe(9000); // Replace 'expectedBehavior' with your expected outcome
+      expect(result.amountIn).toBe(10);
+      expect(result.amountOut).toBe(9000);
     });
   });
 
@@ -158,7 +161,7 @@ describe("ArbitrageEngine", () => {
         amountIn: 0.1,
         orderType: "amm",
       });
-      expect(result).toBeCloseTo(90.9090909091); // Expected result based on the provided AMM formula
+      expect(result.amountOut).toBeCloseTo(90.9090909091); // Expected result based on the provided AMM formula
     });
 
     // Test Fee Calculation with AMM
@@ -178,9 +181,11 @@ describe("ArbitrageEngine", () => {
         fee: fee,
         orderType: "amm",
       });
-      expect(resultWithFee).toBeCloseTo(resultWithoutFee * (1 - fee));
+      expect(resultWithFee.amountOut).toBeCloseTo(
+        resultWithoutFee.amountOut * (1 - fee)
+      );
     });
-  
+
     // Test Exceed Volume Input Amount with AMM
     it("should handle exceed volume input amount using AMM", () => {
       const largeAmount = 10; // This should be larger than the total available in the reserve
@@ -192,58 +197,182 @@ describe("ArbitrageEngine", () => {
         orderType: "amm",
       });
       // Expected behavior when exceeding the volume (e.g., return the maximum possible value, throw an error, etc.)
-      expect(result).toBeCloseTo(909.09090909091); // Replace 'expectedBehavior' with your expected outcome
+      expect(result.amountOut).toBeCloseTo(909.09090909091); // Replace 'expectedBehavior' with your expected outcome
     });
   });
 
   describe("getAmountIn with Order Books", () => {
-
     const orderBooks: OrderBooks = {
       bids: [{ price: 900, size: 10 }],
       asks: [{ price: 1100, size: 10 }],
     };
 
-    // Basic Test for Calculating Amount In
     it("should calculate the correct amount in when selling", () => {
-      // engine.updateOrderBooks("exchange1", "BTC_USD", orderBooks);
-      // const result = engine.getAmountIn({
-      //   exchange: "exchange1",
-      //   pair: "BTC_USD",
-      //   amountOut: 4500,
-      // });
-      // expect(result).toBeCloseTo(5); // Amount out divided by the bid price
+      engine.updateOrderBooks("exchange1", "BTC_USD", orderBooks);
+      const result = engine.getAmountIn({
+        exchange: "exchange1",
+        pair: "BTC_USD",
+        amountOut: 4500,
+      });
+      expect(result.amountIn).toBeCloseTo(5); // Amount out divided by the bid price
     });
-  
+
+    it("should calculate the correct amount in when selling with fee", () => {
+      engine.updateOrderBooks("exchange1", "BTC_USD", orderBooks);
+      const resultWithoutFee = engine.getAmountIn({
+        exchange: "exchange1",
+        pair: "BTC_USD",
+        amountOut: 4500,
+      });
+      const resultWithFee = engine.getAmountIn({
+        exchange: "exchange1",
+        pair: "BTC_USD",
+        amountOut: 4500,
+        fee: 0.01
+      });
+      expect(resultWithFee.amountIn).toBeCloseTo(resultWithoutFee.amountIn * (1 + 0.01));
+    });
+
+    it("should calculate the correct amount in when buying", () => {
+      engine.updateOrderBooks("exchange1", "BTC_USD", orderBooks);
+      const result = engine.getAmountIn({
+        exchange: "exchange1",
+        pair: "USD_BTC",
+        amountOut: 2,
+      });
+      expect(result.amountIn).toBeCloseTo(2200); // Amount out divided by the bid price
+    });
+
+    it("should calculate the correct amount in when buying with fee", () => {
+      engine.updateOrderBooks("exchange1", "BTC_USD", orderBooks);
+      const resultWithoutFee = engine.getAmountIn({
+        exchange: "exchange1",
+        pair: "USD_BTC",
+        amountOut: 2,
+      });
+      const resultWithFee = engine.getAmountIn({
+        exchange: "exchange1",
+        pair: "USD_BTC",
+        amountOut: 2,
+        fee: 0.01
+      });
+      expect(resultWithFee.amountIn).toBeCloseTo(resultWithoutFee.amountIn * (1 + 0.01)); // Amount out divided by the bid price
+    });
+
     // Test with Multiple Level Order Books
     it("should handle multiple level order books when calculating amount in", () => {
-      // const multiLevelOrderBooks: OrderBooks = {
-      //   bids: [{ price: 900, size: 10 }, { price: 800, size: 10 }, { price: 700, size: 10 }],
-      //   asks: [{ price: 1100, size: 10 }, { price: 1200, size: 10 }],
-      // };
-      // engine.updateOrderBooks("exchange1", "BTC_USD", multiLevelOrderBooks);
-      // const amountOut = 26000;
-      // const result = engine.getAmountIn({
-      //   exchange: "exchange1",
-      //   pair: "BTC_USD",
-      //   amountOut: amountOut,
-      // });
-      // const expectedAmountIn = 10 * (900) + 10 * (800) + 10 * (700); // Amount in from all levels
-      // expect(result).toBeCloseTo(expectedAmountIn);
+      const multiLevelOrderBooks: OrderBooks = {
+        bids: [
+          { price: 900, size: 10 },
+          { price: 800, size: 10 },
+          { price: 700, size: 10 },
+        ],
+        asks: [
+          { price: 1100, size: 10 },
+          { price: 1200, size: 10 },
+        ],
+      };
+      engine.updateOrderBooks("exchange1", "BTC_USD", multiLevelOrderBooks);
+      const amountOut = 26000;
+      const result = engine.getAmountIn({
+        exchange: "exchange1",
+        pair: "BTC_USD",
+        amountOut: amountOut,
+      });
+      expect(result.amountIn).toBeCloseTo(30);
+      expect(result.amountOut).toBeCloseTo(24000);
     });
-  
-    // Test Exceed Volume Input Amount
-    it("should handle exceed volume output amount when calculating amount in", () => {
-      // const largeAmount = 10000; // Larger than the total available in the initial order book
-      // engine.updateOrderBooks("exchange1", "BTC_USD", orderBooks);
-      // const result = engine.getAmountIn({
-      //   exchange: "exchange1",
-      //   pair: "BTC_USD",
-      //   amountOut: largeAmount,
-      // });
-      // const expectedBehavior = 20; // Sum of sizes from bids in the initial order book
-      // expect(result).toBe(expectedBehavior);
-    });
-  
   });
-  
+
+  describe("getAmountIn with AMM", () => {
+    const reserves: ReservePool = { r0: 100, r1: 1000 };
+
+    // k = 100 * 1000 = 100000
+    // r1 = 1000 - 10 = 990, r0 = k / r1 = 100000 / 990 = 101.0101010101
+    // amountIn = 101.0101010101 - 100 = 1.0101010101
+    it("should calculate the amount in for a given amount out (sell)", () => {
+      engine.updateReserves("exchange1", "BTC_USD", reserves);
+      const result = engine.getAmountIn({
+        exchange: "exchange1",
+        pair: "BTC_USD",
+        amountOut: 10,
+        orderType: "amm",
+      });
+      expect(result.amountIn).toBeCloseTo(1.0101010101); // Replace with actual expected value
+    });
+
+    // k = 100 * 1000 = 100000
+    // r1 = 1000 - 10 = 990, r0 = k / r1 = 100000 / 990 = 101.0101010101
+    // amountIn = 101.0101010101 - 100 = 1.0101010101
+    // amountInWithFee = 1.0101010101 * (1 + 0.03) = 1.0414213141
+    it("should calculate the amount in for a given amount out with fee (sell)", () => {
+      engine.updateReserves("exchange1", "BTC_USD", reserves);
+      const resultWithoutFee = engine.getAmountIn({
+        exchange: "exchange1",
+        pair: "BTC_USD",
+        amountOut: 10,
+        orderType: "amm",
+      });
+      const resultWithFee = engine.getAmountIn({
+        exchange: "exchange1",
+        pair: "BTC_USD",
+        amountOut: 10,
+        orderType: "amm",
+        fee: 0.03,
+      });
+      expect(resultWithFee.amountIn).toBeCloseTo(
+        resultWithoutFee.amountIn * (1 + 0.03)
+      ); // Replace with actual expected value
+    });
+
+    // k = 100 * 1000 = 100000
+    // r0 = 100 - 10 = 90, r1 = k / r0 = 100000 / 90 = 1111.1111111111
+    // amountIn = 1111.1111111111 - 1000 = 111.1111111111
+    it("should calculate the amount in for a given amount out (buy)", () => {
+      engine.updateReserves("exchange1", "BTC_USD", reserves);
+      const result = engine.getAmountIn({
+        exchange: "exchange1",
+        pair: "USD_BTC",
+        amountOut: 10,
+        orderType: "amm",
+      });
+      expect(result.amountIn).toBeCloseTo(111.1111111111); // Replace with actual expected value
+    });
+
+    // k = 100 * 1000 = 100000
+    // r0 = 100 - 10 = 90, r1 = k / r0 = 100000 / 90 = 1111.1111111111
+    // amountIn = 1111.1111111111 - 1000 = 111.1111111111
+    // amountInWithFee = 111.1111111111 * (1 + 0.03) = 114.4444444444
+    it("should calculate the amount in for a given amount out with fee (buy)", () => {
+      engine.updateReserves("exchange1", "BTC_USD", reserves);
+      const resultWithoutFee = engine.getAmountIn({
+        exchange: "exchange1",
+        pair: "USD_BTC",
+        amountOut: 10,
+        orderType: "amm",
+      });
+      const resultWitFee = engine.getAmountIn({
+        exchange: "exchange1",
+        pair: "USD_BTC",
+        amountOut: 10,
+        orderType: "amm",
+        fee: 0.03,
+      });
+      expect(resultWitFee.amountIn).toBeCloseTo(
+        resultWithoutFee.amountIn * (1 + 0.03)
+      );
+    });
+
+    it("should handle zero amount out", () => {
+      engine.updateReserves("exchange1", "BTC_USD", reserves);
+      expect(() =>
+        engine.getAmountIn({
+          exchange: "exchange1",
+          pair: "BTC_USD",
+          amountOut: 0,
+          orderType: "amm",
+        })
+      ).toThrowError("Reserves and amountOut must be greater than 0");
+    });
+  });
 });

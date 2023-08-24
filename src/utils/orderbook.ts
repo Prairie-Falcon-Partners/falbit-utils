@@ -7,6 +7,7 @@ export const buyBase = (
   commission = 0,
   precisions = 2,
 ) => {
+  let tmpBase = base;
   let quote = 0;
   for (let i = 0; i < asks.length && base > 0; i++) {
     let { size, price } = asks[i];
@@ -14,7 +15,10 @@ export const buyBase = (
     base -= tradeVol;
     quote += tradeVol * price;
   }
-  return truncate(quote * (1 + commission), precisions);
+  return {
+    base: tmpBase - base,
+    quote: truncate(quote * (1 + commission), precisions),
+  }
 };
 
 export const buyQuote = (
@@ -23,6 +27,7 @@ export const buyQuote = (
   commission = 0,
   precisions = 2,
 ) => {
+  let tmpQuote = quote;
   let base = 0;
   for (let i = 0; i < asks.length && quote > 0; i++) {
     let { size, price } = asks[i];
@@ -31,7 +36,10 @@ export const buyQuote = (
     quote -= tradeVol * price;
     base += tradeVol;
   }
-  return truncate(base * (1 - commission), precisions);
+  return {
+    base: truncate(base * (1 - commission), precisions),
+    quote: tmpQuote - quote
+  }
 };
 
 export const sellBase = (
@@ -40,6 +48,7 @@ export const sellBase = (
   commission = 0,
   precisions = 2,
 ) => {
+  let tmpBase = base;
   let quote = 0;
   for (let i = 0; i < bids.length && base > 0; i++) {
     let { size, price } = bids[i];
@@ -49,7 +58,10 @@ export const sellBase = (
     base -= tradeVol;
     quote += tradeVol * price;
   }
-  return truncate(quote * (1 - commission), precisions);
+  return {
+    base: tmpBase - base,
+    quote: truncate(quote * (1 - commission), precisions)
+  }
 };
 
 export const sellQuote = (
@@ -58,6 +70,7 @@ export const sellQuote = (
   commission = 0,
   precisions = 2,
 ) => {
+  let tmpQuote = quote;
   let base = 0;
   for (let i = 0; i < bids.length && quote > 0; i++) {
     let { size, price } = bids[i];
@@ -67,5 +80,8 @@ export const sellQuote = (
     quote -= tradeVol * price;
     base += tradeVol;
   }
-  return truncate(base * (1 + commission), precisions);
+  return {
+    base: truncate(base * (1 + commission), precisions),
+    quote: tmpQuote - quote
+  }
 };

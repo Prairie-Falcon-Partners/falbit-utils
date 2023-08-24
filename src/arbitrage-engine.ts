@@ -59,7 +59,7 @@ export class ArbitrageEngine {
       const fee = fees ? fees[i - 1] : 0;
       const precision = precisions ? precisions[i - 1] : this.DEFAULT_PRECISION;
       const orderType = orderTypes ? orderTypes[i - 1] : "orderbook";
-      const amount = this.getAmountOut({
+      const result = this.getAmountOut({
         exchange,
         pair,
         amountIn: amounts[i - 1],
@@ -67,7 +67,7 @@ export class ArbitrageEngine {
         precision,
         orderType,
       });
-      amounts.push(amount);
+      amounts.push(result.amountOut);
     }
 
     return amounts;
@@ -87,7 +87,7 @@ export class ArbitrageEngine {
     fee?: number;
     precision?: number;
     orderType?: OrderType;
-  }): number {
+  }): { amountIn: number, amountOut: number } {
     return orderType === "amm"
       ? this._getAmountOutAMM({ exchange, pair, amountIn, fee, precision })
       : this._getAmountOutOrderBook({
@@ -113,7 +113,7 @@ export class ArbitrageEngine {
     fee?: number;
     precision?: number;
     orderType?: OrderType;
-  }): number {
+  }): { amountIn: number, amountOut: number } {
     return orderType === "amm"
       ? this._getAmountInAMM({ exchange, pair, amountOut, fee, precision })
       : this._getAmountInOrderBook({
@@ -153,7 +153,7 @@ export class ArbitrageEngine {
     amountIn: number;
     fee?: number;
     precision?: number;
-  }): number {
+  }): { amountIn: number, amountOut: number } {
     if (!fee) fee = 0;
     if (!precision) precision = this.DEFAULT_PRECISION;
 
@@ -165,14 +165,25 @@ export class ArbitrageEngine {
 
     if (reverseOrderBooks) {
       // Direction = buy
-      return buyQuote(reverseOrderBooks.asks, amountIn, fee, precision);
+      const { base, quote } = buyQuote(reverseOrderBooks.asks, amountIn, fee, precision);
+      return {
+        amountIn: quote,
+        amountOut: base
+      }
     } else if (orderBooks) {
       // Direction = sell
-      return sellBase(orderBooks.bids, amountIn, fee, precision);
+      const { base, quote } = sellBase(orderBooks.bids, amountIn, fee, precision);
+      return {
+        amountIn: base,
+        amountOut: quote
+      }
     }
 
     // The code shouldn't reach here
-    return 0;
+    return {
+      amountIn: 0,
+      amountOut: 0
+    }
   }
 
   // BTC_USDT -> How much BTC sold to get the specific amount of USDT -> amountOut of USDT -> amountIn of BTC
@@ -189,7 +200,7 @@ export class ArbitrageEngine {
     amountOut: number;
     fee?: number;
     precision?: number;
-  }): number {
+  }): { amountIn: number, amountOut: number } {
     if (!fee) fee = 0;
     if (!precision) precision = this.DEFAULT_PRECISION;
 
@@ -201,14 +212,22 @@ export class ArbitrageEngine {
 
     if (reverseOrderBooks) {
       // Direction = buy
-      return buyBase(reverseOrderBooks.asks, amountOut, fee, precision);
+      const { base, quote } = buyBase(reverseOrderBooks.asks, amountOut, fee, precision);
+      return {
+        amountIn: quote,
+        amountOut: base,
+      }
     } else if (orderBooks) {
       // Direction = sell
-      return sellQuote(orderBooks.bids, amountOut, fee, precision);
+      const { base, quote } = sellQuote(orderBooks.bids, amountOut, fee, precision);
+      return {
+        amountIn: base,
+        amountOut: quote
+      }
     }
 
     // The code shouldn't reach here
-    return 0;
+    return { amountIn: 0, amountOut: 0 }
   }
 
   private _getAmountOutAMM({
@@ -223,7 +242,7 @@ export class ArbitrageEngine {
     amountIn: number;
     fee?: number;
     precision?: number;
-  }): number {
+  }): { amountIn: number, amountOut: number } {
     if (!fee) fee = 0;
     const reverseReserves = this._getReverseReserves(exchange, pair);
     const reserves = this.getReserves(exchange, pair);
@@ -232,18 +251,26 @@ export class ArbitrageEngine {
       throw new Error(`_getAmountOutAMM: no reserves found`);
 
     if (reverseReserves) {
-      return calculateAmountOut(
+      const result = calculateAmountOut(
         reverseReserves.r1,
         reverseReserves.r0,
         amountIn,
         fee
       );
+      return {
+        amountIn,
+        amountOut: result
+      }
     } else if (reserves) {
-      return calculateAmountOut(reserves.r0, reserves.r1, amountIn, fee);
+      const result = calculateAmountOut(reserves.r0, reserves.r1, amountIn, fee);
+      return {
+        amountIn,
+        amountOut: result
+      }
     }
 
     // The code shouldn't reach here
-    return 0;
+    return { amountIn: 0, amountOut: 0 }
   }
 
   private _getAmountInAMM({
@@ -258,7 +285,7 @@ export class ArbitrageEngine {
     amountOut: number;
     fee?: number;
     precision?: number;
-  }): number {
+  }): { amountIn: number, amountOut: number } {
     if (!fee) fee = 0;
     if (!precision) precision = this.DEFAULT_PRECISION;
     const [token0, token1] = pair.split("_");
@@ -270,19 +297,27 @@ export class ArbitrageEngine {
 
     if (reverseReserves) {
       // Direction = buy
-      return calculateAmountIn(
+      const result = calculateAmountIn(
         reverseReserves.r1,
         reverseReserves.r0,
         amountOut,
         fee
       );
+      return {
+        amountIn: result,
+        amountOut
+      }
     } else if (reserves) {
       // Direction = sell
-      return calculateAmountIn(reserves.r0, reserves.r1, amountOut, fee);
+      const result = calculateAmountIn(reserves.r0, reserves.r1, amountOut, fee);
+      return {
+        amountIn: result,
+        amountOut
+      }
     }
 
     // The code shouldn't reach here
-    return 0;
+    return { amountIn: 0, amountOut: 0 }
   }
 
   private _getReverseOrderbooks(

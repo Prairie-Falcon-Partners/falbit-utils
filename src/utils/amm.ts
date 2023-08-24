@@ -25,5 +25,5 @@ export function calculateAmountIn(
   }
   const numerator = rIn * amountOut;
   const denominator = (rOut - amountOut)
-  return numerator / denominator * (1 - fee);
+  return numerator / denominator * (1 + fee);
 }
