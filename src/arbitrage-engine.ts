@@ -27,7 +27,7 @@ export class ArbitrageEngine {
     this._setReserves(exchange, pair, reserves);
   }
 
-  public getAmounsOut({
+  public getAmountsOut({
     route,
     exchanges,
     amountIn,
@@ -44,21 +44,21 @@ export class ArbitrageEngine {
   }) {
     const routeLen = route.length;
     if (exchanges.length !== routeLen)
-      throw new Error(`getAmounsOut: exchanges length not match route length`);
+      throw new Error(`getAmountsOut: exchanges length not match route length`);
     if (fees && fees.length !== routeLen)
-      throw new Error(`getAmounsOut: fees length not match route length`);
+      throw new Error(`getAmountsOut: fees length not match route length`);
     if (precisions && precisions.length !== routeLen)
-      throw new Error(`getAmounsOut: precisions length not match route length`);
+      throw new Error(`getAmountsOut: precisions length not match route length`);
     if (orderTypes && orderTypes.length !== routeLen)
-      throw new Error(`getAmounsOut: orderTypes length not match route length`);
+      throw new Error(`getAmountsOut: orderTypes length not match route length`);
 
     const amounts = [amountIn];
     for (let i = 1; i < routeLen; i++) {
       const pair = `${route[i - 1]}_${route[i]}`;
-      const exchange = exchanges[i - 1];
-      const fee = fees ? fees[i - 1] : 0;
-      const precision = precisions ? precisions[i - 1] : this.DEFAULT_PRECISION;
-      const orderType = orderTypes ? orderTypes[i - 1] : "orderbook";
+      const exchange = exchanges[i];
+      const fee = fees ? fees[i] : 0;
+      const precision = precisions ? precisions[i] : this.DEFAULT_PRECISION;
+      const orderType = orderTypes ? orderTypes[i] : "orderbook";
       const result = this.getAmountOut({
         exchange,
         pair,

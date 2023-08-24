@@ -375,4 +375,120 @@ describe("ArbitrageEngine", () => {
       ).toThrowError("Reserves and amountOut must be greater than 0");
     });
   });
+
+  describe("getAmountsOut", () => {
+
+    const bkBTCTHBOrderBooks = {
+      bids: [{ price: 900000, size: 10000 }],
+      asks: [{ price: 1000000, size: 10000 }],
+    }
+
+    const bkUSDTTHBOrderBooks = {
+      bids: [{ price: 30, size: 10000 }],
+      asks: [{ price: 40, size: 10000 }],
+    }
+
+    const bnBTCUSDTOrderBooks = {
+      bids: [{ price: 30000, size: 10000 }],
+      asks: [{ price: 40000, size: 10000 }],
+    }
+
+    it('should correctly calculate amounts out for a given path and amount in - pure order books', () => {
+      engine.updateOrderBooks("binance", "BTC_USDT", bnBTCUSDTOrderBooks);
+      engine.updateOrderBooks("bitkub", "BTC_THB", bkBTCTHBOrderBooks);
+      engine.updateOrderBooks("bitkub", "USDT_THB", bkUSDTTHBOrderBooks);
+
+      const amounts = engine.getAmountsOut({
+        route: ['USDT', 'THB', 'BTC', 'USDT'],
+        exchanges: ['', 'bitkub', 'bitkub', 'binance'],
+        amountIn: 100,
+      })
+
+      const expectedAmounts = [100, 3000, 0.003, 90];
+      for (let i = 0; i < amounts.length; i++) {
+        expect(amounts[i]).toBeCloseTo(expectedAmounts[i]);
+      }
+    })
+
+    it('should correctly calculate amounts out for a given path and amount in - pure order books with fees', () => {
+      engine.updateOrderBooks("binance", "BTC_USDT", bnBTCUSDTOrderBooks);
+      engine.updateOrderBooks("bitkub", "BTC_THB", bkBTCTHBOrderBooks);
+      engine.updateOrderBooks("bitkub", "USDT_THB", bkUSDTTHBOrderBooks);
+
+      const amounts = engine.getAmountsOut({
+        route: ['USDT', 'THB', 'BTC', 'USDT'],
+        exchanges: ['', 'bitkub', 'bitkub', 'binance'],
+        amountIn: 100,
+        fees: [0, 0.0025, 0.0025, 0.001]
+      })
+
+      const expectedAmounts = [100, 3000 * (1 - 0.0025), 0.003 * (1 - 0.0025 - 0.0025), 90 * (1 - 0.0025 - 0.0025 - 0.001)];
+      for (let i = 0; i < amounts.length; i++) {
+        expect(amounts[i]).toBeCloseTo(expectedAmounts[i]);
+      }
+    })
+
+    // k = 10000 * 300000000 = 3000000000000
+    // r1 = 300000000 + 100 = 300000100, r0 = k / r1 = 3000000000000 / 300000100 = 9999.9966666678
+    // amountOut = 10000 - 9999.9966666678 = 0.0033333322 
+    const ammBTCUSDTReserves = {
+      r0: 10000,
+      r1: 300000000
+    }
+
+    // k = 10000 * 100000000 = 1000000000000
+    // r0 = 10000 + 0.0033333322 = 10000.0033333322, r1 = k / r1 = 1000000000000 / 10000.0033333322 = 99999966.6666891111
+    // amountOut = 99999966.6666891111 - 100000000 = 33.3333108889
+    const ammBTCUSDCReserves = {
+      r0: 10000,
+      r1: 100000000
+    }
+
+    // k = 100000000 * 100000000 = 10000000000000000
+    // r1 = 100000000 + 33.3333108889 = 100000033.3333108889, r0 = k / r1 = 10000000000000000 / 100000033.3333108889 = 99999966.6667002222
+    // amountOut = 100000000 - 99999966.6667002222 = 33.3332997778
+    const ammUSDTUSDCReserves = {
+      r0: 100000000,
+      r1: 100000000
+    }
+
+    it('should correctly calculate amounts out for a given path and amount in - pure amm', () => {
+      engine.updateReserves("uniswap", "BTC_USDT", ammBTCUSDTReserves);
+      engine.updateReserves("uniswap", "BTC_USDC", ammBTCUSDCReserves);
+      engine.updateReserves("uniswap", "USDT_USDC", ammUSDTUSDCReserves);
+
+      const amounts = engine.getAmountsOut({
+        route: ['USDT', 'BTC', 'USDC', 'USDT'],
+        exchanges: ['', 'uniswap', 'uniswap', 'uniswap'],
+        orderTypes: ['amm', 'amm', 'amm', 'amm'],
+        amountIn: 100,
+      })
+
+      const expectedAmounts = [100, 0.0033333322, 33.3333108889, 33.3332997778];
+      for (let i = 0; i < amounts.length; i++) {
+        expect(amounts[i]).toBeCloseTo(expectedAmounts[i]);
+      }
+    })
+
+    it('should correctly calculate amounts out for a given path and amount in - pure amm with fee', () => {
+      engine.updateReserves("uniswap", "BTC_USDT", ammBTCUSDTReserves);
+      engine.updateReserves("uniswap", "BTC_USDC", ammBTCUSDCReserves);
+      engine.updateReserves("uniswap", "USDT_USDC", ammUSDTUSDCReserves);
+
+      const amounts = engine.getAmountsOut({
+        route: ['USDT', 'BTC', 'USDC', 'USDT'],
+        exchanges: ['', 'uniswap', 'uniswap', 'uniswap'],
+        orderTypes: ['amm', 'amm', 'amm', 'amm'],
+        fees: [0.003, 0.003, 0.003, 0.003],
+        amountIn: 100,
+      })
+
+      const expectedAmounts = [100, 0.0033333322 * (1 - 0.003), 33.3333108889 * (1 - 0.003 - 0.003), 33.3332997778 * (1 - 0.003 - 0.003 - 0.003)];
+      for (let i = 0; i < amounts.length; i++) {
+        expect(amounts[i]).toBeCloseTo(expectedAmounts[i]);
+      }
+
+    })
+
+  })
 });
