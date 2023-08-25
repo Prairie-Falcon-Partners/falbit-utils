@@ -7,7 +7,7 @@ Utility functions for universal pure arbitrage strategy using TypeScript.
 Include the SDK in your project by adding it to your dependencies:
 
 ```bash
-npm install --save @pf/falbit
+npm install --save @pfalcon/falbit-utils
 ```
 
 ## Support
