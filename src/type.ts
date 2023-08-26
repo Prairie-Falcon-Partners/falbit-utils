@@ -14,3 +14,5 @@ export type ReservePool = {
 }
 
 export type OrderType = "orderbook" | "amm"
+
+export type Step = [number, number];
